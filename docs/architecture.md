@@ -2,9 +2,9 @@
 
 ## Статус
 
-**Discovery draft.** Здесь зафиксированы только согласованные границы и логическая архитектура. Технологический стек, поставщики и физическая схема развёртывания ещё не выбраны. Документ не является implementation specification.
+**Approved initial architecture.** Логические границы и основной технологический стек утверждены. Конкретные cloud/AI/object-storage providers остаются открытыми. Feature-specific contracts фиксируются в specifications.
 
-Последнее обновление: 2026-09-30.
+Последнее обновление: 2026-10-02.
 
 ## Обзор системы
 
@@ -41,7 +41,7 @@ Admin         ─→ verification / conflict resolution / publish decision
 - hard stop влияет на публикацию, а не на числовой A;
 - административная проверка не называется полноценным due diligence без отдельной утверждённой процедуры.
 
-Подробные решения и открытые вопросы: `docs/scoring-methodology-decisions.md`.
+Подробная утверждённая продуктовая основа: `docs/spv-scoring-methodology-v1.md`. История анализа и альтернатив: `docs/scoring-methodology-decisions.md`.
 
 ## Основные логические компоненты
 
@@ -56,7 +56,17 @@ Admin         ─→ verification / conflict resolution / publish decision
 - просмотр A, B, рисков и AI-рекомендаций;
 - административный интерфейс — отдельный feature slice.
 
-Frontend framework пока **OPEN**.
+Approved frontend stack:
+
+- React + TypeScript + Vite;
+- React Router;
+- TanStack Query;
+- React Hook Form + Zod for UX validation;
+- Tailwind CSS + shadcn/ui;
+- Recharts;
+- OpenAPI-generated TypeScript client.
+
+Frontend never owns authoritative scoring, permissions, workflow transitions, or data-integrity decisions. Django validates every write again.
 
 ### 2. Application backend
 
@@ -69,7 +79,37 @@ Frontend framework пока **OPEN**.
 - risk evaluation;
 - административные действия и audit trail.
 
-Backend framework пока **OPEN**.
+Approved backend stack:
+
+- Python + current supported Django LTS;
+- Django REST Framework;
+- `drf-spectacular` for OpenAPI;
+- Django ORM;
+- PostgreSQL;
+- Django session authentication with CSRF protection;
+- email-first custom User model from the first migration.
+
+Backend is an API-first modular monolith. Business logic lives in application/domain services, not DRF serializers or views.
+
+### Module boundaries
+
+```text
+accounts
+projects
+methodologies
+questionnaires
+assessments
+scoring
+evidence
+risks
+documents
+reviews
+publication
+audit
+notifications
+```
+
+The normal dependency direction is `API → application service → domain logic → persistence/integration adapters`. Generic repositories and abstraction layers are added only when they solve a demonstrated problem.
 
 ### 3. Score engine
 
@@ -94,17 +134,19 @@ score(confirmed_answers, methodology_version)
   → calculation metadata
 ```
 
-Формула A и пятиблочные веса ещё **OPEN**.
+Формула A, пять блоков и девять весов утверждены в `docs/spv-scoring-methodology-v1.md`. Score engine рассчитывает вклад критерия как `weight × score / 10` и итоговый A как сумму вкладов.
+
+Score engine также содержит детерминированный Project IRR calculator для nominal after-tax unlevered annual cash flows. Расчёт использует Year 0 и 5–10 прогнозных лет; неоднозначный или невычислимый результат получает `IRR_REQUIRES_REVIEW`.
 
 ### 4. Evidence engine
 
 - сопоставляет подтверждённый ответ с найденными документальными значениями;
 - хранит источники и статусы `unverified / matched / conflict`;
 - в будущем учитывает `admin_verified`;
-- вычисляет B только после утверждения формулы;
+- вычисляет B по тем же весам, что A, и коэффициентам доказательности `1.0 / 0.5 / 0`;
 - не выбирает автоматически, какой конфликтующий источник «правильный».
 
-Формула B пока **OPEN**.
+Формула: `B = Σ criterion weight × verification coefficient`. Конфликт имеет коэффициент 0 и отдельный conflict flag. Внутренний `A × B / 100` допускается только для административной приоритизации.
 
 ### 5. Risk engine
 
@@ -112,9 +154,10 @@ score(confirmed_answers, methodology_version)
 - сохраняет код риска, причину, источники и статус;
 - не изменяет A;
 - сообщает publication gate;
-- поддерживает только явно разрешённый и аудируемый admin override.
+- блокирует публикацию при активном Hard Stop;
+- не изменяет A или B.
 
-Каталог рисков и правила существенности пока **OPEN**.
+MVP Hard Stops и Risk Flags утверждены в `docs/spv-scoring-methodology-v1.md`. Hard-stop override не входит в первый Admin MVP.
 
 ### 6. Document ingestion
 
@@ -153,18 +196,34 @@ AI provider, модель, политика retention и допустимост�
 
 ### 8. Admin review
 
-Целевая возможность:
+Admin MVP включает:
 
 - review queue;
 - просмотр источников и расхождений;
 - назначение verification status;
 - комментарии;
 - решение о публикации;
-- override hard stop с причиной;
+- действия `Return for Correction`, `Approve`, `Publish`;
+- запрет `Publish` при активном Hard Stop;
 - запуск явного пересчёта;
 - audit log.
 
-Состав admin-функций первого MVP пока **OPEN**.
+Статусы проекта: `Draft`, `Review`, `Conflict`, `Ready`, `Published`. Фактическая аудитория статуса `Published` определяется отдельной feature specification; investor matching сюда не входит.
+
+### 9. Telegram notification adapter
+
+Telegram is a secondary channel layered over the same application backend.
+
+Initial responsibilities:
+
+- notify about document-processing completion or failure;
+- notify about missing information or return for correction;
+- notify about review/status changes;
+- provide authenticated/deep links to the primary web interface.
+
+The bot does not own scoring, project state, files, or authorization rules. Long-running work is queued by the backend and completed outside the Telegram update handler.
+
+`aiogram` is the preferred option if the selected backend ecosystem is Python; the final library choice remains part of stack selection. A Telegram Mini App is explicitly deferred until the standard web interface is stable.
 
 ## Логическая модель данных
 
@@ -213,7 +272,8 @@ AI provider, модель, политика retention и допустимост�
 
 - methodology version;
 - A и breakdown;
-- B, когда формула утверждена;
+- B и evidence breakdown;
+- criterion и block breakdown;
 - score-at-submission;
 - current score/related recalculation при необходимости;
 - timestamps и причина пересчёта;
@@ -225,7 +285,7 @@ AI provider, модель, политика retention и допустимост�
 - warning или hard stop;
 - субъект, сумма и источник, где применимо;
 - status и resolution;
-- admin override и причина.
+- publication-blocking state и resolution history.
 
 ### Investment terms
 
@@ -257,7 +317,7 @@ AI provider, модель, политика retention и допустимост�
 7. Evidence engine рассчитывает статусы и в будущем B.
 8. Risk engine создаёт warnings/hard stops и publication gate.
 9. AI формирует объяснения и рекомендации, не меняя A/B/risks.
-10. При включённом admin workflow администратор проверяет расхождения и решает вопрос публикации.
+10. Администратор проверяет расхождения, назначает evidence statuses, при необходимости запускает пересчёт и решает вопрос публикации.
 ```
 
 ## Версионирование и воспроизводимость
@@ -308,15 +368,15 @@ AI provider, модель, политика retention и допустимост�
 
 ## База данных
 
-Тип базы данных пока **OPEN**. По текущей доменной модели достаточно одной транзакционной базы данных; отдельные микросервисы, event-driven architecture и распределённые хранилища не требуются.
+PostgreSQL is the primary transactional database accessed through Django ORM. The system uses one database; separate databases per module, microservices, event sourcing, and distributed transactions are not required.
 
 Версионированные оценки, ответы, evidence observations, риски и audit events должны быть связаны так, чтобы результат можно было воспроизвести.
 
 ## Background processing
 
-Извлечение и AI-анализ документов потенциально длительные и должны выполняться асинхронно относительно HTTP-запроса. Конкретный механизм пока **OPEN**.
+Извлечение и AI-анализ документов потенциально длительные и должны выполняться persistent background workers, независимо от HTTP-запроса.
 
-Для ранней версии предпочтителен простой database-backed job mechanism или управляемая функция, а не отдельная сложная очередь. Повторные попытки должны быть идемпотентными и не создавать дубликаты оценок.
+Для ранней версии используется PostgreSQL-backed job/outbox mechanism за небольшим application-level task interface; конкретная библиотека выбирается в соответствующей specification. Web, worker и будущий aiogram bot запускаются отдельными процессами из одного backend codebase/image. Повторные попытки идемпотентны и не создают дубликаты evidence observations или assessments.
 
 ## Интеграции
 
@@ -326,13 +386,22 @@ AI provider, модель, политика retention и допустимост�
 - AI provider;
 - object storage;
 - hosting/database provider;
+- Telegram Bot API for the secondary notification channel;
 - в будущем разрешённые источники проверки данных в Казахстане.
 
 Конкретные поставщики не выбраны.
 
 ## Deployment
 
-Модель развёртывания пока **OPEN**. Для MVP предпочтительна одна веб-система с одним backend/deployment boundary и управляемыми базой/хранилищем. Microservices, Kubernetes и event-driven architecture не требуются.
+Local development uses Docker Compose. Production topology keeps one product boundary:
+
+```text
+/        → built React SPA
+/api/    → Django REST API
+/admin/  → internal Django Admin
+```
+
+A reverse proxy or managed platform provides same-origin routing so browser auth uses secure HttpOnly Django session cookies without JWT in localStorage. Frontend and backend remain separate build artifacts, but backend domain modules are one deployable modular monolith. Managed PostgreSQL is preferred for public pilots. Microservices, Kubernetes, and event-driven architecture are not required.
 
 ## Security and privacy
 
@@ -342,7 +411,7 @@ AI provider, модель, политика retention и допустимост�
 - персональные данные заявителей;
 - финансовые прогнозы;
 - сведения о долгах и судебных рисках;
-- административные решения и override;
+- административные решения, изменения значений и пересчёты;
 - отправка документов внешнему AI-провайдеру.
 
 До реализации загрузки документов должны быть утверждены:
@@ -360,6 +429,12 @@ AI provider, модель, политика retention и допустимост�
 ### DECIDED
 
 - модульный монолит предпочтительнее микросервисов для MVP;
+- primary web client is a React/TypeScript/Vite SPA;
+- backend is a Django/DRF API-first modular monolith using Django ORM and PostgreSQL;
+- frontend contracts are generated from backend OpenAPI;
+- Django owns users, sessions, permissions, and authoritative validation;
+- same-origin session-cookie + CSRF auth is preferred over browser JWT storage;
+- long operations run in persistent background workers, not request or bot handlers;
 - score engine детерминирован и отделён от AI;
 - A, B и risks — независимые результаты;
 - ответы и документальные значения хранятся отдельно;
@@ -371,8 +446,7 @@ AI provider, модель, политика retention и допустимост�
 
 ### Не принимать пока
 
-- конкретный frontend/backend framework;
-- конкретную СУБД и cloud provider;
+- конкретный cloud, email, AI, and object-storage provider;
 - отдельные микросервисы;
 - сложную message queue;
 - realtime;
@@ -384,12 +458,14 @@ AI provider, модель, политика retention и допустимост�
 
 ## Дорогие открытые решения
 
-- утверждённая формула A и распределение весов после удаления доли инвестора;
-- финансовая модель Project IRR;
-- формула и доказательственная модель B;
-- каталог hard stops и право административного override;
-- объём admin workflow в MVP;
 - хранение и удаление документов;
 - условия внешней AI-обработки;
 - юридическое значение публикации проекта;
+- фактическая аудитория и контроль доступа для статуса `Published`;
 - будущая модель доступа инвесторов.
+- Telegram account linking and notification-consent behavior.
+
+## Delivery references
+
+- Dependency-ordered backlog: `docs/initial-feature-backlog.md`.
+- Recommended first end-to-end slice: `docs/first-milestone.md`.

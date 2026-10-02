@@ -22,12 +22,28 @@ permission:
     "docs/**/*.md": allow
   bash:
     "*": deny
+
     "git status": allow
     "git status *": allow
     "git diff": allow
     "git diff *": allow
     "git log": allow
     "git log *": allow
+    "git branch --show-current": allow
+    "git remote -v": allow
+    "git remote get-url *": allow
+
+    "git add": ask
+    "git add *": ask
+    "git commit": ask
+    "git commit *": ask
+    "git push": ask
+    "git push *": ask
+    "git fetch": ask
+    "git fetch *": ask
+    "git pull": ask
+    "git pull *": ask
+    "git remote set-url *": ask
   skill: allow
 ---
 

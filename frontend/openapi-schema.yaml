@@ -1,0 +1,50 @@
+openapi: 3.0.3
+info:
+  title: AMF API
+  version: 0.1.0
+  description: Application API for AMF.
+paths:
+  /api/health/:
+    get:
+      operationId: health_retrieve
+      tags:
+      - health
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+          description: ''
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnavailableHealth'
+          description: ''
+components:
+  schemas:
+    Health:
+      type: object
+      properties:
+        status:
+          type: string
+          readOnly: true
+        database:
+          type: string
+          readOnly: true
+      required:
+      - database
+      - status
+    UnavailableHealth:
+      type: object
+      properties:
+        status:
+          type: string
+          readOnly: true
+        database:
+          type: string
+          readOnly: true
+      required:
+      - database
+      - status

@@ -4,6 +4,8 @@
 
 This is a parking lot for ideas outside the currently approved MVP. Items here are **not approved requirements** and must be refined, prioritized, and moved into their own feature specifications before implementation.
 
+Some early entries below—document conflict detection, evidence statuses, risk handling, and audit history—have since moved into the approved target MVP. The authoritative sequence is now `docs/initial-feature-backlog.md`; this file remains a historical parking lot and must not override newer product or methodology documents.
+
 ## Evaluation expansion
 
 - Add the operating-business assessment from `project-evaluation-criteria.docx`.
@@ -34,6 +36,7 @@ This is a parking lot for ideas outside the currently approved MVP. Items here a
 - Notifications about investor interest and application status.
 - Multiple users or advisers collaborating on one project.
 - Agency or analyst role for assisted preparation and review.
+- Telegram Mini App after the primary web workflow and Telegram notification channel are stable.
 
 ## Verification and due diligence
 

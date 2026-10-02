@@ -18,6 +18,8 @@ The longer-term product may combine:
 
 The first milestone does **not** include the investor marketplace.
 
+The primary product interface is a web application. A Telegram bot is planned as a secondary notification and deep-link channel after the core web workflow exists. A Telegram Mini App is a future option, not part of the initial scope.
+
 ## Problem
 
 Project owners currently submit substantially the same information to separate investment agencies. Each agency sees only its own applications. Applications are often poorly structured, so investors spend significant time filtering them and requesting missing information. Project owners may use intermediaries to prepare a project for financing, but those services can require a significant fee or percentage.
@@ -74,15 +76,17 @@ An applicant without a suitable document can complete the questionnaire manually
 - may later configure selection preferences after the common methodology is validated;
 - may discover projects matching those preferences, evidence requirements, and acceptable risk status.
 
-### Administrator — TARGET ROLE / MVP SCOPE OPEN
+### Administrator — DECIDED FOR MVP
 
 - reviews document/answer discrepancies within granted permissions;
 - records verification status and review comments;
 - sees project score, evidence status, and risks separately;
 - can decide whether a project is publishable;
-- may resolve or override a hard stop only through an auditable rule.
+- resolves conflicts, returns projects for correction, approves and publishes;
+- cannot publish while an active Hard Stop exists;
+- can trigger an audited recalculation.
 
-The role is part of the target product model, but the exact admin capabilities included in the first MVP remain open. Administrative verification must not be presented as full due diligence unless a separate procedure is defined.
+The MVP Admin scope is defined in `docs/spv-scoring-methodology-v1.md`. Administrative verification must not be presented as full due diligence unless a separate procedure is defined.
 
 ## Evaluation model
 
@@ -94,13 +98,14 @@ The source criteria are stored in `project-evaluation-criteria.docx`. It current
 
 Only the **new project (SPV)** form is in the MVP.
 
-The extracted rules and contradictions are maintained in `docs/scoring-methodology-review.md`. Proposed resolutions and their approval status are maintained in `docs/scoring-methodology-decisions.md`. Both must be resolved before the SPV scoring rules become implementation-ready.
+The extracted rules and contradictions are maintained in `docs/scoring-methodology-review.md`, with decision history in `docs/scoring-methodology-decisions.md`. The approved product and calculation baseline is `docs/spv-scoring-methodology-v1.md`; it is ready to be converted into feature-level implementation specifications.
 
-### A: project quality and readiness — DECIDED CONCEPT, FORMULA OPEN
+### A: project quality and readiness — DECIDED
 
 - Criteria and answer scores are common across the platform.
 - The formal score is calculated deterministically from predefined answer values.
-- The intended presentation is a numeric score out of 100; the final grouping, weights, and treatment of the removed investor-share criterion require methodology-owner approval.
+- A is a numeric score out of 100 using the approved five blocks and nine weighted criteria documented in `docs/spv-scoring-methodology-v1.md`.
+- Weights are: finances 30%, team 20%, product/readiness 20%, economics/market 20%, legal 10%.
 - AI does not change the formal score.
 - A does not represent funding probability, business-success probability, a credit rating, or investment advice.
 - An investor may later configure selection preferences; investor-specific scoring behavior is not currently approved.
@@ -111,31 +116,33 @@ The extracted rules and contradictions are maintained in `docs/scoring-methodolo
 - Calibrate any future categories and thresholds using at least 15–20, preferably 20–30, real projects and expert outcomes.
 - The previously proposed `0–39 / 40–69 / 70–100` bands are withdrawn.
 
-### B: evidence level — DECIDED CONCEPT, FORMULA OPEN
+### B: evidence level — DECIDED
 
 - B is separate from A and shows how strongly applicant claims are supported by documents and review.
 - B does not automatically replace answers or modify A.
-- The aggregation formula, evidence weights, and difference between document matching and administrator verification remain open.
-- A combined `A × B` may be considered later for internal prioritization, not as the sole public investor score.
+- Each criterion receives an evidence coefficient `1.0`, `0.5`, or `0`; conflict also creates a flag.
+- B uses the same criterion weights as A: `B = Σ weight × verification coefficient`.
+- `A × B / 100` may be used only for internal Admin prioritization, not as the sole public investor score.
 
-### Risk flags and hard stops — DECIDED CONCEPT, CATALOG OPEN
+### Risk flags and hard stops — DECIDED FOR MVP
 
 - Risks are shown separately and cannot be hidden by a high A.
 - Warnings do not block continued review.
 - Hard stops block publication until resolved or explicitly overridden by an authorized administrator.
-- Preliminary hard-stop candidates: no real project executor, a critical legal contradiction, or inability to establish the main applicant.
-- Preliminary warnings: no confirmed sales, debt, no confirmed co-financing, or a material document/answer discrepancy.
-- Exact definitions, materiality, and override permissions require approval.
+- MVP Hard Stops: no responsible project executor; missing required data; critical unresolved contradiction; unidentified applicant/project owner.
+- MVP Risk Flags include no confirmed sales, debt, litigation, no co-financing, low IRR, weak team, and low evidence.
+- `Publish` is unavailable while a Hard Stop is active.
 
 ### SPV rubric clarifications — DECIDED WITH OPEN DETAILS
 
-- If the return criterion is IRR, the target metric is Project IRR calculated deterministically from project cash flows. Until that financial model is approved, the MVP must call a user-supplied value `declared annual project return`, not IRR.
-- The offered investor share is removed from A and moved to a separate investment-terms block. Replacing or reweighting source criterion 8 requires methodology-owner approval.
+- The target metric is Project IRR calculated deterministically from nominal after-tax unlevered project cash flows over 5–10 forecast years. Exceptional/multiple IRR cases receive `IRR_REQUIRES_REVIEW`.
+- If an earlier slice omits the financial model, the user-supplied value is called `declared annual project return`, not IRR.
+- The offered investor share is removed from A and moved to Investment Terms. The financial block is split between own funds and co-financing at 15% each.
 - `What the project already has` describes resources actually available or secured at the time of application, not items planned for future purchase.
 - That resource criterion is a multi-select. Its raw maximum remains 9.5 and is proposed to be normalized using `raw / 9.5 × 10`, subject to methodology-owner approval.
 - `Only the project / nothing else exists` is mutually exclusive with all resource selections.
 - Own-funds ranges are interpreted as: `<10%` → 2; `10–<20%` → 4; `20–<30%` → 6; `30–<40%` → 8; `40–50%` → 9; `>50%` → 10.
-- Double participation of own funds and contracts/offtake is intentional because the occurrences describe different aspects, but this must be confirmed by the methodology owner.
+- Double participation of own funds and contracts/offtake is intentional because the occurrences describe different aspects.
 
 ### AI feedback — DECIDED WITH OPEN DETAILS
 
@@ -174,7 +181,7 @@ The initial result contains:
 
 - total formal score;
 - a diagram or visual breakdown by criterion;
-- evidence level B when its formula is approved;
+- evidence level B;
 - weak areas;
 - AI recommendations;
 - additional AI observations outside the formal rubric, clearly separated from scored criteria;
@@ -197,6 +204,9 @@ The initial result contains:
 - final applicant review and editing of the full questionnaire before assessment;
 - deterministic scoring;
 - AI qualitative assessment, explanations, and recommendations based on confirmed answers and document context;
+- Project IRR calculation from structured project cash flows, unless intentionally deferred to a later MVP slice under the declared-return fallback;
+- deterministic A and B calculations plus separate Risk Flags and Hard Stops;
+- Admin project list, project review, verification, conflict resolution, recalculation, publication actions, and audit log;
 - versioned scoring results; the applicant-facing MVP may show only the latest while preserving score-at-submission internally;
 - projects visible only to their authors and explicitly authorized administrators.
 
@@ -213,6 +223,7 @@ The initial result contains:
 - public low/medium/high score bands before pilot calibration;
 - spreadsheets, presentations, images, scanned-document OCR, and other file types beyond PDF/DOCX;
 - Kazakh or English localization;
+- Telegram bot and Telegram Mini App;
 - guarantee of funding or investment performance.
 
 ## Business and product rules
@@ -243,12 +254,7 @@ The initial result contains:
 - What file-size, page-count, and file-count limits apply?
 - What exact citation format is feasible for each supported document format?
 - What exact textual fields accompany the structured SPV questionnaire?
-- Is a Project IRR cash-flow model included in MVP, and what periods, horizon, taxes, investment schedule, terminal value, and exceptional-case rules apply?
-- Does the methodology owner approve normalization of the 9.5 resource score and intentional double participation of own funds and contracts/offtake?
-- What replaces source criterion 8 after investor share is removed from A, and how is its weight redistributed?
-- What is the exact formula for B and which evidence statuses contribute to it?
-- Which risk definitions are hard stops, who can override them, and how is that audited?
-- Is administrator verification included in the MVP or delivered immediately afterward?
+- What exact publication audience and visibility does `Published` create before investor matching exists?
 - What password recovery and email-verification behavior is required?
 - What retention and deletion rules apply to commercially sensitive project files?
 - Which AI provider and data-processing terms are acceptable for confidential business information?
@@ -273,6 +279,7 @@ The initial result contains:
 - 2026-09-30: clarified that the return criterion may mean IRR and approved non-overlapping own-funds ranges. The later baseline prefers Project IRR when calculated by the platform.
 - 2026-09-30: adopted the baseline split into A (quality/readiness), B (evidence), separate risk flags/hard stops, AI assistance, and administrator review.
 - 2026-09-30: withdrew pilot score bands, removed investor share from A subject to methodology-owner approval, adopted methodology versioning, and required historical results not to be silently recalculated.
+- 2026-09-30: approved `SPV-1.0` product baseline: five weighted A blocks, weighted B formula, initial Hard Stops/Risk Flags, deterministic Project IRR rules, and the Admin MVP workflow. Details are consolidated in `docs/spv-scoring-methodology-v1.md`.
 
 ## Agreed delivery slicing
 
@@ -284,3 +291,22 @@ The following is the current preferred implementation order, not a set of implem
 4. Broader AI document analysis and separately labeled additional observations.
 
 Each slice must remain usable and verifiable on its own. Document automation is part of the intended MVP, but it must not block delivery of the simpler scoring flow.
+
+## Delivery planning
+
+- Ordered feature sequence: `docs/initial-feature-backlog.md`.
+- Recommended smallest working slice: `docs/first-milestone.md`.
+- Each backlog item still requires its own implementation-ready specification before production work begins.
+
+## Client channels
+
+### DECIDED
+
+- Web application is the primary interface for questionnaires, documents, results, conflicts, and Admin workflows.
+- Telegram bot is added after the core web backend for notifications and links to relevant web pages.
+- Sensitive business-plan documents are uploaded directly to the application's private storage, not sent through Telegram by default.
+
+### FUTURE
+
+- Telegram Mini App may provide the web interface inside Telegram after the normal web flow is stable.
+- Rich questionnaire completion inside a chat conversation is not currently planned.

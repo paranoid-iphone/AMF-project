@@ -2,7 +2,7 @@
 
 ## Status
 
-Design approved on 2026-10-05. The specification is ready for final written review before implementation planning begins.
+Completed on 2026-10-05. All 17 acceptance criteria were independently verified. The user reported a satisfactory review and authorized saving the result. The separate automated final diff review was interrupted without a verdict; this limitation is retained in `docs/private-projects-verification.md`.
 
 ## Goal
 
@@ -282,7 +282,7 @@ Use React Hook Form and Zod for client-side usability while keeping Django autho
 10. An active project can be edited without deactivation when the resulting state remains valid.
 11. An invalid edit of an active project is rejected atomically and preserves the previous stored state.
 12. The workspace implements accessible loading, error, empty, list, create, edit, activation, and deactivation states.
-13. The UI does not expose deletion, public publication, account email, phone, or Telegram information.
+13. The project UI does not expose deletion, public publication, or account email, phone, or Telegram as project/contact information. The existing authenticated workspace header may continue showing the current user's own email.
 14. There is no `DELETE` project endpoint and no project deletion behavior in Django Admin.
 15. API errors use the established stable JSON envelope and unsafe requests include the current CSRF token.
 16. OpenAPI and generated frontend TypeScript contracts are current.

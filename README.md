@@ -2,7 +2,7 @@
 
 Foundation for the AMF investment-project assessment web application. The approved architecture is a React/TypeScript/Vite SPA backed by a Django 5.2 LTS + Django REST Framework modular monolith and PostgreSQL.
 
-This slice contains the application foundation, invite-only applicant authentication, its dedicated email outbox worker, and a private workspace shell. It does not include project workflows, scoring, AI/document processing, general-purpose workers, or product administration workflow.
+The application contains the foundation, invite-only applicant authentication, its dedicated email outbox worker, and private SPV projects with draft editing, activation, and return to draft. Scoring, questionnaires, AI/document processing, public publication, and product administration workflows are not implemented.
 
 ## Repository layout
 
@@ -120,7 +120,17 @@ npm run build
 
 With the Compose backend running, `npm run verify` is the cross-platform, fail-fast frontend and API-contract gate. It runs the authoritative schema freshness check, full dependency audit, lint, typecheck, tests, and build without relying on shell-specific command chaining. Tailwind CSS 4 uses its official Vite plugin with shadcn-compatible CSS variables.
 
-The application uses React Router, TanStack Query, React Hook Form, and Zod. The typed `openapi-fetch` transport sends same-origin credentials and the current CSRF cookie on unsafe auth requests. Routes include `/login`, invite-only `/register`, password recovery, email verification, `/app`, and `/status`; query-string secrets are removed after capture. Vite proxies `/api` to Django in development, so no CORS workaround is required.
+The application uses React Router, TanStack Query, React Hook Form, and Zod. The typed `openapi-fetch` transport sends same-origin credentials and the current CSRF cookie on unsafe auth and project requests. Routes include `/login`, invite-only `/register`, password recovery, email verification, `/app`, `/app/projects/new`, `/app/projects/:id`, and `/status`; query-string secrets are removed after capture. Vite proxies `/api` to Django in development, so no CORS workaround is required.
+
+## Private project workflow
+
+After login, open `/app` and choose **Создать проект**. Only the title is required to save a draft. Description and investment amount may be completed later; the default currency is KZT, with USD and EUR also supported. Changes are saved explicitly, not automatically.
+
+To activate a saved project, confirm the account email and provide a non-empty title and description plus a positive amount. Active projects remain editable while these requirements are satisfied. **Вернуть в черновик** clears the activation timestamp; reactivation records a new one. Save pending edits before either lifecycle action.
+
+Every project remains private to its owner, including when active. Activation is not public publication. Projects persist in PostgreSQL across login/logout, reloads, and service restarts as long as the database volume is retained. Deletion and archiving are intentionally absent; future lifecycle and contact-channel ideas are retained in `specs/backlog/project-lifecycle-and-contact-channels.md`.
+
+Completed scope: [project specification](specs/done/003-spv-project-drafts.md). Verification results and review provenance: [verification report](docs/private-projects-verification.md).
 
 ## OpenAPI and generated frontend types
 

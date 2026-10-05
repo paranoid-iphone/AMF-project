@@ -1,6 +1,6 @@
 # AMF backend
 
-Django 5.2 LTS API using Django REST Framework, drf-spectacular, Django ORM, and PostgreSQL. The backend contains the application foundation plus invite-only applicant authentication.
+Django 5.2 LTS API using Django REST Framework, drf-spectacular, Django ORM, and PostgreSQL. The backend contains the application foundation, invite-only applicant authentication, and private SPV project drafts and activation.
 
 ## Local environment
 
@@ -56,9 +56,30 @@ POST /api/auth/password-reset/request/
 POST /api/auth/password-reset/confirm/
 ```
 
-Registration is invitation-only. Unverified applicants may use the private draft workspace, while future submission/review services must call `accounts.guards.require_verified_email`. Invitations and verification tokens store only SHA-256 digests. Rate-limit identifiers and client IPs are HMAC digests stored in PostgreSQL. Material identity changes create append-only `AccountSecurityEvent` rows without passwords, raw tokens, session IDs, or email bodies. Restricted queryset/instance write paths prevent updates or deletes, and protected user/invitation references keep audit retention immutable.
+Registration is invitation-only. Unverified applicants may create and edit private drafts; project activation calls `accounts.guards.require_verified_email`, as future submission/review services must also do. Invitations and verification tokens store only SHA-256 digests. Rate-limit identifiers and client IPs are HMAC digests stored in PostgreSQL. Material identity changes create append-only `AccountSecurityEvent` rows without passwords, raw tokens, session IDs, or email bodies. Restricted queryset/instance write paths prevent updates or deletes, and protected user/invitation references keep audit retention immutable.
 
 All API failures use a stable `{"error":{"code":"...","message":"..."}}` envelope, optionally with structured field errors. Invitation and credential failures do not reveal account existence.
+
+## Private project API
+
+All project endpoints require the existing session. Unsafe requests use the current `X-CSRFToken`; no separate token authentication is introduced.
+
+```text
+GET  /api/projects/
+POST /api/projects/
+GET  /api/projects/{id}/
+PATCH /api/projects/{id}/
+POST /api/projects/{id}/activate/
+POST /api/projects/{id}/deactivate/
+```
+
+The list returns `{"projects": [...]}` ordered by last update, then creation, descending. Create requires only a trimmed title (maximum 200 characters); optional fields are description (maximum 5,000 characters), nullable positive `investment_amount` (decimal string, at most 20 digits and two decimal places), and currency (`KZT`, `USD`, `EUR`; default `KZT`). PATCH accepts any subset of these four fields. Omitted values are preserved; explicit blank description or null amount may be saved only for drafts. Identity, owner, lifecycle/timestamps, and unknown request keys are rejected.
+
+Activation and deactivation take no request body. Activation requires verified email and complete valid saved fields. Active edits validate the merged state before persistence and reject invalid changes atomically. Repeated transitions are idempotent. Deactivation clears `activated_at`; a later activation sets a new timestamp.
+
+Reads and application services scope every target to its owner. Missing, malformed, and foreign identifiers return the same `404 not_found` envelope. All mutations pass through `projects.services`, with transaction/row locking for existing targets and database checks for positive amounts, supported currencies, and status/timestamp consistency. The Project model is not registered in Django Admin; DELETE returns stable `405 method_not_allowed` and is not documented as an available operation. No owner/contact identity is returned in project representations.
+
+See `specs/done/003-spv-project-drafts.md` for the completed scope and acceptance criteria, and `docs/private-projects-verification.md` for verification and review provenance. OpenAPI and generated TypeScript remain authoritative for exact wire shapes.
 
 ## Invitation operations
 
@@ -107,4 +128,4 @@ Local defaults apply only to `DJANGO_ENVIRONMENT=development`. Production must e
 
 Production rejects non-SMTP/console/in-memory/file/dummy email backends; plaintext or simultaneously enabled TLS/SSL modes; missing SMTP credentials/settings; Mailpit/localhost SMTP; non-HTTPS public links; and `.local` sender addresses. `AUTH_RATE_LIMIT_HMAC_KEY` must be independent from `DJANGO_SECRET_KEY`, at least 32 characters, diverse, and not a known development value. Secure cookies, HTTPS redirect, and one year of HSTS default on. HSTS subdomain coverage and preload remain explicit opt-ins.
 
-Configurable authentication values include token lifetimes, seven-day rolling session age, and each IP/account/token rate limit. Defaults are defined in `config/settings.py` and match `specs/ready/002-authentication-private-workspace.md`.
+Configurable authentication values include token lifetimes, seven-day rolling session age, and each IP/account/token rate limit. Defaults are defined in `config/settings.py` and match `specs/done/002-authentication-private-workspace.md`.

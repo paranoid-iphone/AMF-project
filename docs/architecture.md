@@ -4,7 +4,7 @@
 
 **Approved initial architecture.** Логические границы и основной технологический стек утверждены. Конкретные cloud/AI/object-storage providers остаются открытыми. Feature-specific contracts фиксируются в specifications.
 
-Последнее обновление: 2026-10-02.
+Последнее обновление: 2026-10-05.
 
 ## Обзор системы
 
@@ -100,6 +100,18 @@ Authentication architecture:
 - email verification is a domain precondition for future submission/review actions, not for private draft access.
 
 Backend is an API-first modular monolith. Business logic lives in application/domain services, not DRF serializers or views.
+
+### Private project lifecycle (slice 003)
+
+Текущий реализованный контур проекта — только приватные `draft` и `active`. Активация не публикует проект и не вводит доступ других заявителей, инвесторов или администратора. Будущие review/publication statuses ниже описывают целевую архитектуру, не текущий API.
+
+- `projects` — отдельный Django module; views делегируют все изменения `projects.services`.
+- Владелец определяется из session user. Owner-scoped lookup выполняется до проверки verified email, поэтому чужой и отсутствующий UUID имеют одинаковый `404`.
+- Изменения существующего проекта используют короткую transaction с `select_for_update`; обычные конкурентные правки — last-write-wins.
+- Активная запись проверяется после объединения PATCH с сохранёнными полями; ошибка не меняет запись. Database constraints защищают amount, currency и согласованность status/activation timestamp.
+- На frontend project query keys включают user id. Logout и global `401` отменяют и удаляют приватные project queries.
+- Сохранение явное. Lifecycle actions работают с сохранённой записью и недоступны при несохранённых изменениях.
+- Удаление, архив, Admin registration и пользовательские contact fields отсутствуют. Stable domain terminology: `CONTEXT.md`; scope: `specs/done/003-spv-project-drafts.md`.
 
 ### Module boundaries
 

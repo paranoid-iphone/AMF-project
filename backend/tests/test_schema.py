@@ -55,20 +55,20 @@ def test_project_openapi_contracts(api_client: APIClient) -> None:
         "/api/projects/{id}/activate/": {"post"},
         "/api/projects/{id}/deactivate/": {"post"},
     }
-    expected_errors = {
-        ("/api/projects/", "get"): {"401"},
-        ("/api/projects/", "post"): {"400", "401", "403"},
-        ("/api/projects/{id}/", "get"): {"401", "404"},
-        ("/api/projects/{id}/", "patch"): {"400", "401", "403", "404"},
-        ("/api/projects/{id}/activate/", "post"): {"400", "401", "403", "404"},
-        ("/api/projects/{id}/deactivate/", "post"): {"401", "403", "404"},
+    expected_responses = {
+        ("/api/projects/", "get"): {"200", "401"},
+        ("/api/projects/", "post"): {"201", "400", "401", "403"},
+        ("/api/projects/{id}/", "get"): {"200", "401", "404"},
+        ("/api/projects/{id}/", "patch"): {"200", "400", "401", "403", "404"},
+        ("/api/projects/{id}/activate/", "post"): {"200", "400", "401", "403", "404"},
+        ("/api/projects/{id}/deactivate/", "post"): {"200", "401", "403", "404"},
     }
 
     for path, methods in expected_methods.items():
         assert set(paths[path]) == methods
         for method, operation in paths[path].items():
             assert "delete" not in operation
-            assert expected_errors[(path, method)].issubset(operation["responses"])
+            assert set(operation["responses"]) == expected_responses[(path, method)]
             for status_code in ("400", "401", "403", "404"):
                 if status_code in operation["responses"]:
                     error_schema = operation["responses"][status_code]["content"][
@@ -113,6 +113,12 @@ def test_project_openapi_contracts(api_client: APIClient) -> None:
         "PatchedProjectWriteRequest",
         "ProjectListEnvelope",
     }.issubset(schema["components"]["schemas"])
+    create_request = schema["components"]["schemas"]["ProjectWriteRequest"]
+    patch_request = schema["components"]["schemas"]["PatchedProjectWriteRequest"]
+    assert set(create_request.get("required", [])) == {"title"}
+    assert not patch_request.get("required", [])
+    assert create_request["properties"]["currency"]["default"] == "KZT"
+    assert patch_request["properties"]["currency"]["default"] == "KZT"
     project_properties = schema["components"]["schemas"]["Project"]["properties"]
     assert "owner" not in project_properties
     assert all(property_schema.get("readOnly") for property_schema in project_properties.values())

@@ -276,7 +276,7 @@ export interface components {
         };
         PatchedProjectWriteRequest: {
             /** @default KZT */
-            currency: components["schemas"]["CurrencyEnum"];
+            currency?: components["schemas"]["CurrencyEnum"];
             description?: string;
             /** Format: decimal */
             investment_amount?: string | null;
@@ -309,7 +309,7 @@ export interface components {
         ProjectStatusEnum: "draft" | "active";
         ProjectWriteRequest: {
             /** @default KZT */
-            currency: components["schemas"]["CurrencyEnum"];
+            currency?: components["schemas"]["CurrencyEnum"];
             description?: string;
             /** Format: decimal */
             investment_amount?: string | null;
@@ -992,14 +992,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Project"];
-                };
-            };
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
             401: {

@@ -596,12 +596,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/Project'
           description: ''
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: ''
         '401':
           content:
             application/json:

@@ -8,7 +8,10 @@ const outputUrl = new URL("../src/api/schema.d.ts", import.meta.url);
 
 export async function generateApiTypes() {
   await readFile(schemaUrl, "utf8");
-  const nodes = await openapiTS(schemaUrl, { alphabetize: true });
+  const nodes = await openapiTS(schemaUrl, {
+    alphabetize: true,
+    defaultNonNullable: false,
+  });
   return astToString(nodes);
 }
 

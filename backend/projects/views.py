@@ -207,7 +207,6 @@ class ProjectDeactivateView(ProjectLifecycleView):
         request=None,
         responses={
             200: ProjectSerializer,
-            400: ErrorEnvelopeSerializer,
             401: ErrorEnvelopeSerializer,
             403: ErrorEnvelopeSerializer,
             404: ErrorEnvelopeSerializer,

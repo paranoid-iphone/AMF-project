@@ -145,7 +145,7 @@ Request:
 }
 ```
 
-Creates a draft owned by the authenticated user and returns `201` with the project representation. Only `title` and `currency` are required at creation.
+Creates a draft owned by the authenticated user and returns `201` with the project representation. Only `title` is required at creation; omitted `currency` defaults to `KZT`.
 
 ### `GET /api/projects/{id}/`
 

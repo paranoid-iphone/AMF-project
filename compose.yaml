@@ -15,6 +15,12 @@ services:
       timeout: 5s
       retries: 10
 
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports:
+      - "${MAILPIT_SMTP_PORT:-1025}:1025"
+      - "${MAILPIT_UI_PORT:-8025}:8025"
+
   backend:
     build:
       context: ./backend
@@ -23,6 +29,7 @@ services:
       DJANGO_DEBUG: ${DJANGO_DEBUG:-true}
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-unsafe-local-compose-key-do-not-use-in-production}
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,backend}
+      DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
       DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS: ${DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS:-false}
       DJANGO_SECURE_HSTS_PRELOAD: ${DJANGO_SECURE_HSTS_PRELOAD:-false}
       POSTGRES_DB: ${POSTGRES_DB:-amf}
@@ -30,6 +37,18 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-amf-local-only}
       POSTGRES_HOST: db
       POSTGRES_PORT: 5432
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:5173}
+      EMAIL_BACKEND: django.core.mail.backends.smtp.EmailBackend
+      EMAIL_HOST: mailpit
+      EMAIL_PORT: 1025
+      EMAIL_HOST_USER: ""
+      EMAIL_HOST_PASSWORD: ""
+      EMAIL_USE_TLS: "false"
+      EMAIL_USE_SSL: "false"
+      EMAIL_TIMEOUT: 10
+      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-AMF <no-reply@amf.local>}
+      AUTH_RATE_LIMIT_HMAC_KEY: ${AUTH_RATE_LIMIT_HMAC_KEY:-unsafe-local-rate-limit-key}
+      AUTH_EMAIL_OUTBOX_RETENTION_SECONDS: ${AUTH_EMAIL_OUTBOX_RETENTION_SECONDS:-2592000}
     command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
     volumes:
       - ./backend:/app
@@ -38,6 +57,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      mailpit:
+        condition: service_started
     healthcheck:
       test:
         [
@@ -51,12 +72,46 @@ services:
       retries: 10
       start_period: 10s
 
+  auth-email-worker:
+    build:
+      context: ./backend
+    environment:
+      DJANGO_ENVIRONMENT: ${DJANGO_ENVIRONMENT:-development}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-true}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-unsafe-local-compose-key-do-not-use-in-production}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,backend}
+      POSTGRES_DB: ${POSTGRES_DB:-amf}
+      POSTGRES_USER: ${POSTGRES_USER:-amf}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-amf-local-only}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:5173}
+      EMAIL_BACKEND: django.core.mail.backends.smtp.EmailBackend
+      EMAIL_HOST: mailpit
+      EMAIL_PORT: 1025
+      EMAIL_HOST_USER: ""
+      EMAIL_HOST_PASSWORD: ""
+      EMAIL_USE_TLS: "false"
+      EMAIL_USE_SSL: "false"
+      EMAIL_TIMEOUT: 10
+      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-AMF <no-reply@amf.local>}
+      AUTH_RATE_LIMIT_HMAC_KEY: ${AUTH_RATE_LIMIT_HMAC_KEY:-unsafe-local-rate-limit-key}
+      AUTH_EMAIL_OUTBOX_RETENTION_SECONDS: ${AUTH_EMAIL_OUTBOX_RETENTION_SECONDS:-2592000}
+    command: python manage.py process_auth_email_outbox --watch --interval 1
+    volumes:
+      - ./backend:/app
+    depends_on:
+      backend:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    restart: unless-stopped
   frontend:
     build:
       context: ./frontend
     environment:
       VITE_API_PROXY_TARGET: http://backend:8000
-    command: npm run dev -- --host 0.0.0.0
+    command: sh -c "npm ci && npm run dev -- --host 0.0.0.0"
     volumes:
       - ./frontend:/app
       - frontend_node_modules:/app/node_modules

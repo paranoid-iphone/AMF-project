@@ -1,0 +1,6 @@
+{% autoescape off %}You have been invited to the AMF pilot.
+
+Register using this link before {{ expires_at }}:
+{{ registration_url }}
+
+If you did not expect this invitation, ignore this message.{% endautoescape %}

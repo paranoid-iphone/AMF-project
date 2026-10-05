@@ -1,0 +1,4 @@
+{% autoescape off %}Verify your AMF email using this link before {{ expires_at }}:
+{{ verification_url }}
+
+If you did not request this, ignore this message.{% endautoescape %}

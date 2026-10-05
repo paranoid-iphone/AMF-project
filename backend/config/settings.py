@@ -1,3 +1,4 @@
+import hmac
 import os
 
 from django.core.exceptions import ImproperlyConfigured
@@ -61,6 +62,71 @@ if not DEBUG and set(ALLOWED_HOSTS) & {"localhost", "127.0.0.1", "backend"}:
     )
 
 CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS")
+LOCAL_DEVELOPMENT_ORIGINS = {"http://localhost:5173", "http://127.0.0.1:5173"}
+if not DEBUG and set(CSRF_TRUSTED_ORIGINS) & LOCAL_DEVELOPMENT_ORIGINS:
+    raise ImproperlyConfigured(
+        "DJANGO_CSRF_TRUSTED_ORIGINS must not include local development origins in production"
+    )
+
+PUBLIC_APP_URL = os.getenv("PUBLIC_APP_URL", "http://localhost:5173")
+EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
+EMAIL_HOST = os.getenv("EMAIL_HOST", "mailpit")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "1025"))
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", False)
+EMAIL_USE_SSL = env_bool("EMAIL_USE_SSL", False)
+EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "10"))
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "AMF <no-reply@amf.local>")
+AUTH_RATE_LIMIT_HMAC_KEY = os.getenv("AUTH_RATE_LIMIT_HMAC_KEY", SECRET_KEY)
+
+UNSAFE_EMAIL_BACKENDS = {
+    "django.core.mail.backends.console.EmailBackend",
+    "django.core.mail.backends.locmem.EmailBackend",
+    "django.core.mail.backends.filebased.EmailBackend",
+    "django.core.mail.backends.dummy.EmailBackend",
+}
+if not DEBUG:
+    required_email_settings = (
+        "EMAIL_BACKEND",
+        "EMAIL_HOST",
+        "EMAIL_PORT",
+        "EMAIL_HOST_USER",
+        "EMAIL_HOST_PASSWORD",
+        "EMAIL_USE_TLS",
+        "EMAIL_USE_SSL",
+        "EMAIL_TIMEOUT",
+        "DEFAULT_FROM_EMAIL",
+        "PUBLIC_APP_URL",
+        "AUTH_RATE_LIMIT_HMAC_KEY",
+    )
+    missing_email_settings = [name for name in required_email_settings if not os.getenv(name)]
+    if missing_email_settings:
+        names = ", ".join(missing_email_settings)
+        raise ImproperlyConfigured(f"Explicit production email settings are required: {names}")
+    if EMAIL_BACKEND in UNSAFE_EMAIL_BACKENDS:
+        raise ImproperlyConfigured("Production EMAIL_BACKEND must deliver transactional email")
+    if EMAIL_BACKEND != "django.core.mail.backends.smtp.EmailBackend":
+        raise ImproperlyConfigured("Production EMAIL_BACKEND must use the SMTP backend")
+    if EMAIL_USE_TLS == EMAIL_USE_SSL:
+        raise ImproperlyConfigured(
+            "Production email must enable exactly one of EMAIL_USE_TLS or EMAIL_USE_SSL"
+        )
+    if EMAIL_HOST.lower() in {"mailpit", "localhost", "127.0.0.1"}:
+        raise ImproperlyConfigured("Production EMAIL_HOST must not use a local development host")
+    if not PUBLIC_APP_URL.startswith("https://"):
+        raise ImproperlyConfigured("Production PUBLIC_APP_URL must use HTTPS")
+    if ".local" in DEFAULT_FROM_EMAIL.lower():
+        raise ImproperlyConfigured("Production DEFAULT_FROM_EMAIL must not use a local address")
+    if (
+        len(AUTH_RATE_LIMIT_HMAC_KEY) < 32
+        or len(set(AUTH_RATE_LIMIT_HMAC_KEY)) < 16
+        or AUTH_RATE_LIMIT_HMAC_KEY.startswith("unsafe-")
+        or hmac.compare_digest(AUTH_RATE_LIMIT_HMAC_KEY, SECRET_KEY)
+    ):
+        raise ImproperlyConfigured(
+            "AUTH_RATE_LIMIT_HMAC_KEY must be an independent high-entropy production secret"
+        )
 
 DATABASE_ENVIRONMENT_NAMES = (
     "POSTGRES_DB",
@@ -140,6 +206,27 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 AUTH_USER_MODEL = "accounts.User"
+PASSWORD_RESET_TIMEOUT = 3600
+AUTH_INVITATION_TTL_SECONDS = int(os.getenv("AUTH_INVITATION_TTL_SECONDS", "604800"))
+AUTH_VERIFICATION_TTL_SECONDS = int(os.getenv("AUTH_VERIFICATION_TTL_SECONDS", "86400"))
+AUTH_EMAIL_OUTBOX_MAX_ATTEMPTS = int(os.getenv("AUTH_EMAIL_OUTBOX_MAX_ATTEMPTS", "5"))
+AUTH_EMAIL_OUTBOX_RETRY_BASE_SECONDS = int(os.getenv("AUTH_EMAIL_OUTBOX_RETRY_BASE_SECONDS", "30"))
+AUTH_EMAIL_OUTBOX_LOCK_TIMEOUT_SECONDS = int(
+    os.getenv("AUTH_EMAIL_OUTBOX_LOCK_TIMEOUT_SECONDS", "300")
+)
+AUTH_EMAIL_OUTBOX_RETENTION_SECONDS = int(
+    os.getenv("AUTH_EMAIL_OUTBOX_RETENTION_SECONDS", "2592000")
+)
+AUTH_LOGIN_IP_LIMIT = int(os.getenv("AUTH_LOGIN_IP_LIMIT", "10"))
+AUTH_LOGIN_ACCOUNT_LIMIT = int(os.getenv("AUTH_LOGIN_ACCOUNT_LIMIT", "5"))
+AUTH_REGISTER_IP_LIMIT = int(os.getenv("AUTH_REGISTER_IP_LIMIT", "10"))
+AUTH_REGISTER_INVITATION_LIMIT = int(os.getenv("AUTH_REGISTER_INVITATION_LIMIT", "5"))
+AUTH_RESET_IP_LIMIT = int(os.getenv("AUTH_RESET_IP_LIMIT", "5"))
+AUTH_RESET_EMAIL_LIMIT = int(os.getenv("AUTH_RESET_EMAIL_LIMIT", "3"))
+AUTH_VERIFY_IP_LIMIT = int(os.getenv("AUTH_VERIFY_IP_LIMIT", "10"))
+AUTH_VERIFY_USER_LIMIT = int(os.getenv("AUTH_VERIFY_USER_LIMIT", "5"))
+AUTH_TOKEN_CONFIRM_IP_LIMIT = int(os.getenv("AUTH_TOKEN_CONFIRM_IP_LIMIT", "10"))
+AUTH_TOKEN_CONFIRM_SELECTOR_LIMIT = int(os.getenv("AUTH_TOKEN_CONFIRM_SELECTOR_LIMIT", "5"))
 
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
@@ -150,12 +237,13 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework.authentication.SessionAuthentication",
+        "accounts.authentication.CsrfEnforcedSessionAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "EXCEPTION_HANDLER": "accounts.api_errors.stable_exception_handler",
 }
 SPECTACULAR_SETTINGS = {
     "TITLE": "AMF API",
@@ -165,9 +253,12 @@ SPECTACULAR_SETTINGS = {
     "COMPONENT_SPLIT_REQUEST": True,
 }
 
+CSRF_FAILURE_VIEW = "accounts.api_errors.csrf_failure"
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 SESSION_COOKIE_SECURE = env_bool("DJANGO_SESSION_COOKIE_SECURE", not DEBUG)
+SESSION_COOKIE_AGE = int(os.getenv("DJANGO_SESSION_COOKIE_AGE", "604800"))
+SESSION_SAVE_EVERY_REQUEST = True
 CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SECURE = env_bool("DJANGO_CSRF_COOKIE_SECURE", not DEBUG)

@@ -1,11 +1,24 @@
-import { Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 
+import { AnonymousOnly, RequireAuth, RootRedirect, SessionReady } from "@/auth/guards";
+import { ForgotPasswordPage } from "@/pages/forgot-password-page";
+import { LoginPage } from "@/pages/login-page";
+import { RegisterPage } from "@/pages/register-page";
+import { ResetPasswordPage } from "@/pages/reset-password-page";
 import { StatusPage } from "@/pages/status-page";
+import { VerifyEmailPage } from "@/pages/verify-email-page";
+import { WorkspacePage } from "@/pages/workspace-page";
 
 export function App() {
-  return (
-    <Routes>
-      <Route path="/" element={<StatusPage />} />
-    </Routes>
-  );
+  return <Routes>
+    <Route path="/" element={<RootRedirect />} />
+    <Route path="/status" element={<StatusPage />} />
+    <Route path="/login" element={<AnonymousOnly><LoginPage /></AnonymousOnly>} />
+    <Route path="/register" element={<AnonymousOnly><RegisterPage /></AnonymousOnly>} />
+    <Route path="/forgot-password" element={<AnonymousOnly><ForgotPasswordPage /></AnonymousOnly>} />
+    <Route path="/reset-password" element={<AnonymousOnly><ResetPasswordPage /></AnonymousOnly>} />
+    <Route path="/verify-email" element={<SessionReady><VerifyEmailPage /></SessionReady>} />
+    <Route path="/app" element={<RequireAuth><WorkspacePage /></RequireAuth>} />
+    <Route path="*" element={<Navigate to="/" replace />} />
+  </Routes>;
 }

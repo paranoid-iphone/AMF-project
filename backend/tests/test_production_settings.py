@@ -16,6 +16,17 @@ PRODUCTION_ENV = {
     "POSTGRES_PASSWORD": "production-test-password-not-for-real-use",
     "POSTGRES_HOST": "postgres.example.internal",
     "POSTGRES_PORT": "5432",
+    "EMAIL_BACKEND": "django.core.mail.backends.smtp.EmailBackend",
+    "EMAIL_HOST": "smtp.example.com",
+    "EMAIL_PORT": "587",
+    "EMAIL_HOST_USER": "smtp-user",
+    "EMAIL_HOST_PASSWORD": "smtp-password-with-high-entropy",
+    "EMAIL_USE_TLS": "true",
+    "EMAIL_USE_SSL": "false",
+    "EMAIL_TIMEOUT": "10",
+    "DEFAULT_FROM_EMAIL": "AMF <no-reply@example.com>",
+    "PUBLIC_APP_URL": "https://app.example.com",
+    "AUTH_RATE_LIMIT_HMAC_KEY": "production-rate-limit-hmac-key-with-enough-entropy",
 }
 
 
@@ -93,6 +104,17 @@ def test_effective_compose_defaults_are_rejected_after_production_marker_is_set(
             "DJANGO_DEBUG": "false",
             "POSTGRES_HOST": "db",
             "POSTGRES_PORT": "5432",
+            "EMAIL_BACKEND": "django.core.mail.backends.smtp.EmailBackend",
+            "EMAIL_HOST": "smtp.example.com",
+            "EMAIL_PORT": "587",
+            "EMAIL_HOST_USER": "smtp-user",
+            "EMAIL_HOST_PASSWORD": "smtp-password-with-high-entropy",
+            "EMAIL_USE_TLS": "true",
+            "EMAIL_USE_SSL": "false",
+            "EMAIL_TIMEOUT": "10",
+            "DEFAULT_FROM_EMAIL": "AMF <no-reply@example.com>",
+            "PUBLIC_APP_URL": "https://app.example.com",
+            "AUTH_RATE_LIMIT_HMAC_KEY": "production-rate-limit-hmac-key-with-enough-entropy",
         }
     )
 
@@ -153,3 +175,71 @@ def test_hsts_subdomains_and_preload_require_explicit_opt_in() -> None:
     settings = json.loads(result.stdout)
     assert settings["hsts_subdomains"] is True
     assert settings["hsts_preload"] is True
+
+
+def test_production_rejects_unsafe_email_backend() -> None:
+    result = run_settings({"EMAIL_BACKEND": "django.core.mail.backends.console.EmailBackend"})
+
+    assert_configuration_rejected(result, "must deliver transactional email")
+
+
+def test_production_rejects_local_email_host() -> None:
+    result = run_settings({"EMAIL_HOST": "mailpit"})
+
+    assert_configuration_rejected(result, "must not use a local development host")
+
+
+def test_production_rejects_non_https_public_url() -> None:
+    result = run_settings({"PUBLIC_APP_URL": "http://app.example.com"})
+
+    assert_configuration_rejected(result, "PUBLIC_APP_URL must use HTTPS")
+
+
+def test_production_rejects_missing_transactional_email_settings() -> None:
+    result = run_settings(remove=("EMAIL_HOST",))
+
+    assert_configuration_rejected(result, "Explicit production email settings are required")
+
+
+def test_production_rejects_plaintext_smtp() -> None:
+    result = run_settings({"EMAIL_USE_TLS": "false", "EMAIL_USE_SSL": "false"})
+
+    assert_configuration_rejected(result, "exactly one")
+
+
+def test_production_rejects_simultaneous_tls_and_ssl() -> None:
+    result = run_settings({"EMAIL_USE_TLS": "true", "EMAIL_USE_SSL": "true"})
+
+    assert_configuration_rejected(result, "exactly one")
+
+
+def test_production_requires_explicit_smtp_credentials() -> None:
+    result = run_settings(remove=("EMAIL_HOST_PASSWORD",))
+
+    assert_configuration_rejected(result, "Explicit production email settings are required")
+
+
+def test_production_rejects_weak_rate_limit_hmac_key() -> None:
+    result = run_settings({"AUTH_RATE_LIMIT_HMAC_KEY": "unsafe-local-rate-limit-key"})
+
+    assert_configuration_rejected(result, "independent high-entropy")
+
+
+def test_production_rejects_rate_limit_key_equal_to_django_secret() -> None:
+    result = run_settings({"AUTH_RATE_LIMIT_HMAC_KEY": PRODUCTION_ENV["DJANGO_SECRET_KEY"]})
+
+    assert_configuration_rejected(result, "independent high-entropy")
+
+
+def test_production_rejects_low_diversity_rate_limit_hmac_key() -> None:
+    result = run_settings({"AUTH_RATE_LIMIT_HMAC_KEY": "a" * 64})
+
+    assert_configuration_rejected(result, "independent high-entropy")
+
+
+def test_production_rejects_local_development_csrf_trusted_origins() -> None:
+    result = run_settings(
+        {"DJANGO_CSRF_TRUSTED_ORIGINS": "http://localhost:5173,http://127.0.0.1:5173"}
+    )
+
+    assert_configuration_rejected(result, "must not include local development origins")

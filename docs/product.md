@@ -70,6 +70,24 @@ An applicant without a suitable document can complete the questionnaire manually
 - can edit answers and reassess a project;
 - receives a rules-based score and AI feedback.
 
+## Authentication and pilot access
+
+### DECIDED
+
+- Applicant registration is invite-only during the pilot; open registration may be enabled later through a new product decision.
+- Registration uses canonical email and password; Django owns identity, sessions, and permissions.
+- An authenticated applicant may enter the private workspace and create/edit future drafts before verifying email.
+- Email verification is required before future meaningful submission/review transitions, enforced by both API and application-service rules.
+- Password reset is self-service and included from the first authentication slice.
+- Administrators are provisioned only through trusted internal Django management (`createsuperuser`/internal administration); there is no public administrator registration.
+- Browser authentication uses same-origin HttpOnly Django session cookies plus CSRF protection; JWT is not stored in browser storage.
+
+### Pilot invitation rules
+
+- Invitations are bound to one canonical email, expire, can be revoked, and are single-use.
+- Possessing an invitation permits registration but does not itself mark email as verified.
+- Public failures do not reveal whether an account or invitation exists.
+
 ### Investor — FUTURE / PARTIALLY DECIDED
 
 - is not included in the first milestone;

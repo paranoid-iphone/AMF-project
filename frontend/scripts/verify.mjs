@@ -9,6 +9,7 @@ if (!npmCli) {
 
 const checks = [
   ["run", "api:check"],
+  ["audit"],
   ["run", "lint"],
   ["run", "typecheck"],
   ["test", "--", "--run"],

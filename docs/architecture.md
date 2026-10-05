@@ -89,6 +89,16 @@ Approved backend stack:
 - Django session authentication with CSRF protection;
 - email-first custom User model from the first migration.
 
+Authentication architecture:
+
+- pilot applicant registration is invitation-only;
+- Django session authentication and CSRF are authoritative;
+- `GET /api/auth/session/` bootstraps SPA auth state and CSRF;
+- invitation, email-verification, and password-reset tokens are short-lived, single-purpose, and never stored raw;
+- development email is captured by Mailpit rather than printed to logs;
+- rate limits are enforced persistently across web processes without adding Redis in the first slice;
+- email verification is a domain precondition for future submission/review actions, not for private draft access.
+
 Backend is an API-first modular monolith. Business logic lives in application/domain services, not DRF serializers or views.
 
 ### Module boundaries

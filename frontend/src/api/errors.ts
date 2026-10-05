@@ -1,6 +1,6 @@
 import type { FieldValues, Path, UseFormSetError } from "react-hook-form";
 
-import { ApiError } from "@/api/auth";
+import { ApiError } from "@/api/client";
 
 const messages: Record<string, string> = {
   invalid_credentials: "Неверный email или пароль.",

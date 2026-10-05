@@ -69,6 +69,8 @@ class ErrorDetailSerializer(serializers.Serializer[dict[str, object]]):
             "not_authenticated",
             "csrf_failed",
             "email_verification_required",
+            "not_found",
+            "method_not_allowed",
             "rate_limited",
         )
     )

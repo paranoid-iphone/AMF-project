@@ -66,6 +66,19 @@ def test_project_mutation_uses_same_not_found_error_for_missing_and_foreign_ids(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("operation", [activate_project, deactivate_project])
+def test_foreign_lifecycle_lookup_precedes_email_verification_guard(operation) -> None:  # type: ignore[no-untyped-def]
+    owner = User.objects.create_user(email="lifecycle-owner@example.com", password="test-password")
+    unverified = User.objects.create_user(
+        email="lifecycle-unverified@example.com", password="test-password"
+    )
+    project = create_project(actor=owner, data={"title": "Private"})
+
+    with pytest.raises(ProjectNotFoundError):
+        operation(actor=unverified, project_id=project.id)
+
+
+@pytest.mark.django_db
 def test_activation_requires_verified_email() -> None:
     owner = User.objects.create_user(
         email="unverified-project@example.com", password="test-password"

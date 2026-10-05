@@ -143,6 +143,72 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["projects_list"];
+        put?: never;
+        post: operations["projects_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["projects_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["projects_update"];
+        trace?: never;
+    };
+    "/api/projects/{id}/activate/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Activate the saved project. */
+        post: operations["projects_activate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{id}/deactivate/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Return the saved project to draft. */
+        post: operations["projects_deactivate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -163,10 +229,19 @@ export interface components {
          *     * `not_authenticated` - not_authenticated
          *     * `csrf_failed` - csrf_failed
          *     * `email_verification_required` - email_verification_required
+         *     * `not_found` - not_found
+         *     * `method_not_allowed` - method_not_allowed
          *     * `rate_limited` - rate_limited
          * @enum {string}
          */
-        CodeEnum: "validation_error" | "invalid_credentials" | "invalid_invitation" | "invalid_or_expired_token" | "not_authenticated" | "csrf_failed" | "email_verification_required" | "rate_limited";
+        CodeEnum: "validation_error" | "invalid_credentials" | "invalid_invitation" | "invalid_or_expired_token" | "not_authenticated" | "csrf_failed" | "email_verification_required" | "not_found" | "method_not_allowed" | "rate_limited";
+        /**
+         * @description * `KZT` - Kzt
+         *     * `USD` - Usd
+         *     * `EUR` - Eur
+         * @enum {string}
+         */
+        CurrencyEnum: "KZT" | "USD" | "EUR";
         ErrorDetail: {
             code: components["schemas"]["CodeEnum"];
             fields?: {
@@ -198,6 +273,47 @@ export interface components {
         PasswordResetRequestRequest: {
             /** Format: email */
             email: string;
+        };
+        PatchedProjectWriteRequest: {
+            /** @default KZT */
+            currency: components["schemas"]["CurrencyEnum"];
+            description?: string;
+            /** Format: decimal */
+            investment_amount?: string | null;
+            title?: string;
+        };
+        Project: {
+            /** Format: date-time */
+            readonly activated_at: string | null;
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly currency: components["schemas"]["CurrencyEnum"];
+            readonly description: string;
+            /** Format: uuid */
+            readonly id: string;
+            /** Format: decimal */
+            readonly investment_amount: string | null;
+            readonly status: components["schemas"]["ProjectStatusEnum"];
+            readonly title: string;
+            /** Format: date-time */
+            readonly updated_at: string;
+        };
+        ProjectListEnvelope: {
+            projects: components["schemas"]["Project"][];
+        };
+        /**
+         * @description * `draft` - Draft
+         *     * `active` - Active
+         * @enum {string}
+         */
+        ProjectStatusEnum: "draft" | "active";
+        ProjectWriteRequest: {
+            /** @default KZT */
+            currency: components["schemas"]["CurrencyEnum"];
+            description?: string;
+            /** Format: decimal */
+            investment_amount?: string | null;
+            title: string;
         };
         RegisterRequest: {
             /** Format: email */
@@ -618,6 +734,296 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UnavailableHealth"];
+                };
+            };
+        };
+    };
+    projects_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectListEnvelope"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    projects_create: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Current csrftoken cookie value for every unsafe request. */
+                "X-CSRFToken": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProjectWriteRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ProjectWriteRequest"];
+                "multipart/form-data": components["schemas"]["ProjectWriteRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Project"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    projects_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Project"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    projects_update: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Current csrftoken cookie value for every unsafe request. */
+                "X-CSRFToken": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedProjectWriteRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedProjectWriteRequest"];
+                "multipart/form-data": components["schemas"]["PatchedProjectWriteRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Project"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    projects_activate: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Current csrftoken cookie value for every unsafe request. */
+                "X-CSRFToken": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Project"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    projects_deactivate: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Current csrftoken cookie value for every unsafe request. */
+                "X-CSRFToken": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Project"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
         };

@@ -79,6 +79,14 @@ def test_database_requires_activation_timestamp_to_match_status() -> None:
             activated_at=None,
         )
 
+    with pytest.raises(IntegrityError), transaction.atomic():
+        Project.objects.create(
+            owner=owner,
+            title="Draft with activation timestamp",
+            status=Project.Status.DRAFT,
+            activated_at=timezone.now(),
+        )
+
 
 def test_project_is_not_registered_in_django_admin() -> None:
     assert Project not in admin.site._registry

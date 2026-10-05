@@ -43,10 +43,11 @@ quote-style = "double"
 python_version = "3.12"
 plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
 strict = true
-exclude = ["accounts/migrations/"]
+exclude = ["accounts/migrations/", "projects/migrations/"]
 
 [tool.django-stubs]
 django_settings_module = "config.settings"
 strict_settings = true
 [tool.ruff.lint.per-file-ignores]
 "accounts/migrations/*.py" = ["E501"]
+"projects/migrations/*.py" = ["E501"]

@@ -4,6 +4,7 @@ import { render } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 
 import { App } from "@/app";
+import { SessionEventBridge } from "@/app-providers";
 
 function LocationProbe() {
   const location = useLocation();
@@ -12,7 +13,8 @@ function LocationProbe() {
 
 export function renderApp(initialEntry = "/") {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-  return render(<MemoryRouter initialEntries={[initialEntry]}><QueryClientProvider client={queryClient}><App /><LocationProbe /></QueryClientProvider></MemoryRouter>);
+  const view = render(<MemoryRouter initialEntries={[initialEntry]}><QueryClientProvider client={queryClient}><SessionEventBridge /><App /><LocationProbe /></QueryClientProvider></MemoryRouter>);
+  return { ...view, queryClient };
 }
 
 export function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}) {

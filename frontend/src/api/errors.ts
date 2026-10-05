@@ -7,6 +7,8 @@ const messages: Record<string, string> = {
   invalid_invitation: "Приглашение недействительно или больше недоступно.",
   invalid_or_expired_token: "Ссылка недействительна или срок её действия истёк.",
   not_authenticated: "Войдите, чтобы продолжить.",
+  email_verification_required: "Подтвердите email, чтобы активировать проект.",
+  not_found: "Проект не найден или недоступен.",
   csrf_failed: "Сессия безопасности устарела. Обновите страницу и повторите попытку.",
   rate_limited: "Слишком много попыток. Повторите позже.",
   validation_error: "Проверьте введённые данные.",

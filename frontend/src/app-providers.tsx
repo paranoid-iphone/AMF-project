@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/reac
 import { useEffect, type PropsWithChildren } from "react";
 
 import type { SessionState } from "@/api/auth";
-import { sessionQueryKey } from "@/auth/session";
+import { clearProjectQueries, sessionQueryKey } from "@/auth/session";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -13,10 +13,12 @@ const queryClient = new QueryClient({
   },
 });
 
-function SessionEventBridge() {
+export function SessionEventBridge() {
   const client = useQueryClient();
   useEffect(() => {
     const handleUnauthorized = () => {
+      void clearProjectQueries(client);
+      void client.cancelQueries({ queryKey: sessionQueryKey });
       client.setQueryData<SessionState>(sessionQueryKey, { authenticated: false, user: null });
     };
     globalThis.addEventListener("auth:unauthorized", handleUnauthorized);
